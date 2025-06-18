@@ -1,0 +1,223 @@
+"use client"
+
+import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
+import { Card, CardContent } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { supabase, type Image, isDemoMode, demoData } from "@/lib/supabase"
+import { LogOut, RefreshCw, Clock, Mail } from 'lucide-react'
+
+export default function DailyImagePage() {
+  const [image, setImage] = useState<Image | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState("")
+  const [dailyDedication, setDailyDedication] = useState("")
+  const router = useRouter()
+  const [currentTime, setCurrentTime] = useState(new Date())
+
+  useEffect(() => {
+    // Check access
+    const hasAccess = localStorage.getItem("daily_image_access")
+    const isRegistered = localStorage.getItem("user_registered")
+
+    if (!hasAccess) {
+      router.push("/")
+      return
+    }
+
+    if (!isRegistered) {
+      router.push("/")
+      return
+    }
+
+    fetchTodayImage()
+    fetchDailyDedication()
+
+    // Update time every minute
+    const timeInterval = setInterval(() => {
+      setCurrentTime(new Date())
+    }, 60000)
+
+    return () => clearInterval(timeInterval)
+  }, [router])
+
+  const fetchTodayImage = async () => {
+    setLoading(true)
+    try {
+      if (isDemoMode) {
+        // Demo mode - use demo data
+        const today = new Date().toISOString().split("T")[0]
+        const demoImage = demoData.images.find((img) => img.display_date === today) || demoData.images[0]
+        setImage(demoImage || null)
+        return
+      }
+
+      // Production mode - fetch from Supabase
+      const today = new Date().toISOString().split("T")[0]
+
+      const { data, error } = await supabase.from("images").select("*").eq("display_date", today).single()
+
+      if (error && error.code !== "PGRST116") {
+        throw error
+      }
+
+      if (!data) {
+        // No image for today, get the next available image
+        const { data: nextImage, error: nextError } = await supabase
+          .from("images")
+          .select("*")
+          .gte("display_date", today)
+          .order("display_date", { ascending: true })
+          .limit(1)
+          .single()
+
+        if (nextError && nextError.code !== "PGRST116") {
+          throw nextError
+        }
+
+        setImage(nextImage || null)
+      } else {
+        setImage(data)
+      }
+    } catch (err) {
+      setError("שגיאה בטעינת התמונה")
+      console.error(err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const fetchDailyDedication = async () => {
+    try {
+      if (isDemoMode) {
+        // Demo mode - use saved dedication or default
+        const savedDedication = localStorage.getItem("admin_daily_dedication")
+        setDailyDedication(savedDedication || "ברוכים הבאים לאגרת היומית שלנו")
+        return
+      }
+
+      // Production mode - fetch from Supabase
+      const { data, error } = await supabase
+        .from("daily_dedication")
+        .select("content")
+        .order("updated_at", { ascending: false })
+        .limit(1)
+        .single()
+
+      if (data) {
+        setDailyDedication(data.content)
+      } else {
+        setDailyDedication("ברוכים הבאים לאגרת היומית")
+      }
+    } catch (err) {
+      console.error("Error fetching dedication:", err)
+      setDailyDedication("ברוכים הבאים לאגרת היומית")
+    }
+  }
+
+  const handleLogout = () => {
+    localStorage.removeItem("daily_image_access")
+    localStorage.removeItem("access_time")
+    localStorage.removeItem("user_registered")
+    router.push("/")
+  }
+
+  const formatHebrewTime = (date: Date) => {
+    const hours = date.getHours().toString().padStart(2, "0")
+    const minutes = date.getMinutes().toString().padStart(2, "0")
+    return `${hours}:${minutes}`
+  }
+
+  const handleContactEmail = () => {
+    window.location.href = "mailto:MMRAZ770@GMAIL.COM?subject=יצירת קשר - אגרת יומית"
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 flex items-center justify-center">
+        <div className="text-center">
+          <RefreshCw className="w-8 h-8 animate-spin mx-auto mb-4 text-blue-600" />
+          <p className="text-gray-600">טוען אגרת...</p>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-amber-50 to-orange-50">
+      {/* Top Section - Horizontal Layout */}
+      <div className="container mx-auto px-4 py-4 max-w-6xl">
+        <div className="flex items-center justify-between gap-4 mb-6">
+          {/* 1. Time - Left */}
+          <div className="flex items-center">
+            <Clock className="w-5 h-5 text-gray-600 ml-2" />
+            <span className="text-xl font-medium text-gray-700">{formatHebrewTime(currentTime)}</span>
+          </div>
+
+          {/* 2. Title - Center */}
+          <div className="flex-1 text-center">
+            <h1 className="text-3xl font-bold text-amber-800">אגרת יומית</h1>
+          </div>
+
+          {/* 3. Daily Dedication - Right */}
+          <div className="max-w-md">
+            <div className="bg-white rounded-lg shadow-md p-3 border-r-4 border-amber-500">
+              <div className="text-sm text-gray-700 leading-relaxed">{dailyDedication || "טוען הקדשה..."}</div>
+            </div>
+          </div>
+        </div>
+
+        {/* Action Buttons - Floating */}
+        <div className="fixed top-4 left-4 flex space-x-2 z-10">
+          <Button variant="outline" size="sm" onClick={handleContactEmail} className="bg-white/90 backdrop-blur-sm">
+            <Mail className="w-4 h-4" />
+          </Button>
+          <Button variant="outline" size="sm" onClick={handleLogout} className="bg-white/90 backdrop-blur-sm">
+            <LogOut className="w-4 h-4" />
+          </Button>
+        </div>
+
+        {/* Main Image - Full Width */}
+        <div className="w-full">
+          {error ? (
+            <Card className="text-center py-12">
+              <CardContent>
+                <p className="text-red-600 mb-4">{error}</p>
+                <Button onClick={fetchTodayImage}>נסה שוב</Button>
+              </CardContent>
+            </Card>
+          ) : image ? (
+            <Card className="overflow-hidden shadow-2xl border-0">
+              <CardContent className="p-0">
+                <div className="relative">
+                  <img
+                    src={image.url || "/placeholder.svg"}
+                    alt={`אגרת יומית`}
+                    className="w-full h-auto min-h-[70vh] max-h-[85vh] object-contain bg-gradient-to-br from-gray-50 to-gray-100"
+                  />
+                </div>
+              </CardContent>
+            </Card>
+          ) : (
+            <Card className="text-center py-20">
+              <CardContent>
+                <h2 className="text-2xl font-semibold text-gray-700 mb-3">אין אגרת להיום</h2>
+                <p className="text-gray-500 mb-6">האגרת עדיין לא הועלתה</p>
+                <Button onClick={fetchTodayImage} size="lg">
+                  רענן
+                </Button>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+
+        {/* Contact Email - Bottom */}
+        <div className="text-center mt-6">
+          <div className="text-sm text-gray-600">
+            ליצירת קשר: <span className="font-mono text-blue-600">MMRAZ770@GMAIL.COM</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}

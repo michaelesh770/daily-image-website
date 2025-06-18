@@ -1,0 +1,77 @@
+"use client"
+
+import type React from "react"
+
+import { useState } from "react"
+import { useRouter } from "next/navigation"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Shield, Lock } from 'lucide-react'
+
+const ADMIN_CODE = "ADMIN2024"
+
+export default function AdminLoginPage() {
+  const [code, setCode] = useState("")
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState("")
+  const router = useRouter()
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setLoading(true)
+    setError("")
+
+    // Simulate checking delay
+    await new Promise((resolve) => setTimeout(resolve, 500))
+
+    if (code.trim() === ADMIN_CODE) {
+      // Store admin access in localStorage
+      localStorage.setItem("admin_access", "true")
+      localStorage.setItem("admin_login_time", new Date().toISOString())
+      router.push("/admin")
+    } else {
+      setError("קוד מנהל שגוי!")
+    }
+
+    setLoading(false)
+  }
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-red-50 to-orange-100 flex items-center justify-center p-4">
+      <Card className="w-full max-w-md">
+        <CardHeader className="text-center">
+          <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <Shield className="w-8 h-8 text-red-600" />
+          </div>
+          <CardTitle className="text-2xl text-red-800">כניסת מנהל</CardTitle>
+          <CardDescription>הכנס את קוד המנהל כדי לגשת לפאנל הניהול</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">קוד מנהל</label>
+              <div className="relative">
+                <Lock className="absolute right-3 top-3 w-4 h-4 text-gray-400" />
+                <Input
+                  type="password"
+                  value={code}
+                  onChange={(e) => setCode(e.target.value)}
+                  placeholder="הכנס קוד מנהל"
+                  className="pr-10"
+                  required
+                />
+              </div>
+            </div>
+
+            {error && (
+              <div className="text-red-600 text-sm bg-red-50 p-3 rounded-md border border-red-200">{error}</div>
+            )}
+
+            <Button type="submit" className="w-full bg-red-600 hover:bg-red-700" disabled={loading || !code.trim()}>
+              {loading ? "בודק..." : "כניסה למנהל"}
+            </Button>
+          </form>
+
+          <div className="mt-6 text-center">
+            <Butto

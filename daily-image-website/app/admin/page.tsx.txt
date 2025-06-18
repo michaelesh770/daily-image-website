@@ -1,0 +1,57 @@
+"use client"
+
+import type React from "react"
+
+import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
+import { supabase, type Image, type AccessCode, isDemoMode, demoData } from "@/lib/supabase"
+import { Plus, Trash2, Key, ImageIcon, Users, AlertCircle, LogOut, Shield, Heart } from 'lucide-react'
+import { Textarea } from "@/components/ui/textarea"
+
+export default function AdminPage() {
+  const [images, setImages] = useState<Image[]>([])
+  const [accessCodes, setAccessCodes] = useState<AccessCode[]>([])
+  const [loading, setLoading] = useState(true)
+  const [uploading, setUploading] = useState(false)
+  const [newCodeCount, setNewCodeCount] = useState(1)
+  const [users, setUsers] = useState<any[]>([])
+  const [dailyDedication, setDailyDedication] = useState("")
+  const router = useRouter()
+
+  useEffect(() => {
+    // Check admin access
+    const hasAdminAccess = localStorage.getItem("admin_access")
+    if (!hasAdminAccess) {
+      router.push("/admin/login")
+      return
+    }
+
+    fetchData()
+  }, [router])
+
+  const fetchData = async () => {
+    try {
+      if (isDemoMode) {
+        // Demo mode - use demo data
+        setImages(demoData.images)
+        setAccessCodes(demoData.accessCodes)
+
+        // Get demo user data from localStorage if exists
+        const demoUserData = localStorage.getItem("demo_user_data")
+        if (demoUserData) {
+          const userData = JSON.parse(demoUserData)
+          setUsers([
+            {
+              id: 1,
+              ...userData,
+              access_codes: { code: "DEMO123" },
+            },
+          ])
+        }
+
+        // Get daily dedication
+        const savedDedication = localStorage.

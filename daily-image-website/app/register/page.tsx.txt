@@ -1,0 +1,119 @@
+"use client"
+
+import type React from "react"
+
+import { useState, useEffect } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { supabase, isDemoMode } from "@/lib/supabase"
+import { User, MapPin, Phone } from 'lucide-react'
+
+export default function RegisterPage() {
+  const [formData, setFormData] = useState({
+    fullName: "",
+    phoneNumber: "",
+    city: "",
+  })
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState("")
+  const router = useRouter()
+  const searchParams = useSearchParams()
+
+  useEffect(() => {
+    // Check if user came from valid code entry
+    const accessCodeId = searchParams.get("access_code_id")
+    if (!accessCodeId) {
+      router.push("/")
+      return
+    }
+  }, [router, searchParams])
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target
+    setFormData((prev) => ({
+      ...prev,
+      [name]: value,
+    }))
+  }
+
+  const validateForm = () => {
+    if (!formData.fullName.trim()) {
+      setError("נא להזין שם מלא")
+      return false
+    }
+    if (!formData.phoneNumber.trim()) {
+      setError("נא להזין מספר טלפון")
+      return false
+    }
+    if (!formData.city.trim()) {
+      setError("נא להזין עיר מגורים")
+      return false
+    }
+
+    // Validate phone number (Israeli format)
+    const phoneRegex = /^0[5-9]\d{8}$|^(\+972|972)[5-9]\d{8}$/
+    if (!phoneRegex.test(formData.phoneNumber.replace(/[-\s]/g, ""))) {
+      setError("מספר טלפון לא תקין")
+      return false
+    }
+
+    return true
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+
+    if (!validateForm()) return
+
+    setLoading(true)
+    setError("")
+
+    try {
+      const accessCodeId = searchParams.get("access_code_id")
+
+      if (isDemoMode) {
+        // Demo mode - just store in localStorage
+        localStorage.setItem("daily_image_access", "true")
+        localStorage.setItem("access_time", new Date().toISOString())
+        localStorage.setItem("user_registered", "true")
+        localStorage.setItem(
+          "demo_user_data",
+          JSON.stringify({
+            full_name: formData.fullName.trim(),
+            phone_number: formData.phoneNumber.trim(),
+            city: formData.city.trim(),
+            registered_at: new Date().toISOString(),
+          }),
+        )
+
+        router.push("/daily-image")
+        return
+      }
+
+      // Production mode - save to Supabase
+      const { error: insertError } = await supabase.from("users").insert({
+        access_code_id: Number.parseInt(accessCodeId!),
+        full_name: formData.fullName.trim(),
+        phone_number: formData.phoneNumber.trim(),
+        city: formData.city.trim(),
+      })
+
+      if (insertError) {
+        throw insertError
+      }
+
+      // Store registration completion in localStorage
+      localStorage.setItem("daily_image_access", "true")
+      localStorage.setItem("access_time", new Date().toISOString())
+      localStorage.setItem("user_registered", "true")
+
+      router.push("/daily-image")
+    } catch (err) {
+      console.error("Registration error:", err)
+      setError("שגיאה ברישום. נסה שוב.")
+    } finally {
+      setLoading(false)
+    }
+  }

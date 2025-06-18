@@ -1,0 +1,61 @@
+import { createClient } from "@supabase/supabase-js"
+
+// Fallback values for preview/development
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://demo.supabase.co"
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "demo-key"
+
+// Create client with error handling
+export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+
+// Check if we're in demo mode
+export const isDemoMode = !process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+export type Image = {
+  id: number
+  filename: string
+  url: string
+  display_date: string
+  uploaded_at: string
+  is_displayed: boolean
+}
+
+export type AccessCode = {
+  id: number
+  code: string
+  is_used: boolean
+  created_at: string
+  used_at: string | null
+}
+
+export type User = {
+  id: number
+  access_code_id: number
+  full_name: string
+  phone_number: string
+  city: string
+  registered_at: string
+}
+
+// Demo data for preview mode
+export const demoData = {
+  images: [
+    {
+      id: 1,
+      filename: "demo-image.jpg",
+      url: "/placeholder.svg?height=400&width=600",
+      display_date: new Date().toISOString().split("T")[0],
+      uploaded_at: new Date().toISOString(),
+      is_displayed: false,
+    },
+  ],
+  accessCodes: [
+    {
+      id: 1,
+      code: "DEMO123",
+      is_used: false,
+      created_at: new Date().toISOString(),
+      used_at: null,
+    },
+  ],
+  users: [],
+}
